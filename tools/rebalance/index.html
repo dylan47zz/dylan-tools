@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>调仓计算器</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    #app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    /* Header */
+    #app-header {
+      background: #1a1a2e;
+      color: white;
+      padding: 12px 16px 0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    /* Step bar */
+    .step-bar {
+      display: flex;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+    }
+
+    .step-item {
+      flex: 1;
+      text-align: center;
+      font-size: 11px;
+      padding: 8px 2px;
+      color: rgba(255,255,255,0.5);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-item.active {
+      color: white;
+      border-bottom-color: #4fc3f7;
+      font-weight: bold;
+    }
+
+    .step-item.done {
+      color: rgba(255,255,255,0.7);
+    }
+
+    /* Main content */
+    #step-content {
+      flex: 1;
+      padding: 20px 16px;
+      overflow-y: auto;
+    }
+
+    /* Footer nav */
+    #step-nav {
+      padding: 12px 16px;
+      display: flex;
+      gap: 8px;
+      border-top: 1px solid #eee;
+      background: #fff;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 13px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-primary { background: #1a1a2e; color: white; flex: 2; }
+    .btn-secondary { background: #eef0f4; color: #555; }
+
+    /* Form elements */
+    .field-label {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .field-input {
+      width: 100%;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .field-input:focus { border-color: #1a1a2e; }
+    .field-input.error { border-color: #e74c3c; }
+
+    .field-hint {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 4px;
+    }
+
+    .error-msg {
+      font-size: 12px;
+      color: #e74c3c;
+      margin-top: 4px;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    /* Summary bar */
+    .summary-bar {
+      background: #f8f9fc;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 16px;
+      font-size: 13px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+    }
+
+    .summary-item { color: #555; }
+    .summary-item span { font-weight: bold; color: #1a1a2e; }
+    .summary-item.warn span { color: #e74c3c; }
+
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+      table-layout: fixed;
+    }
+
+    .data-table th {
+      background: #f0f2f5;
+      padding: 8px 6px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      color: #666;
+      overflow: hidden;
+    }
+
+    .data-table td {
+      padding: 6px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+      overflow: hidden;
+    }
+
+    .data-table .cell-input {
+      width: 100%;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    .data-table .cell-input:focus { border-color: #1a1a2e; }
+    .data-table .cell-input.error { border-color: #e74c3c; }
+    .data-table .cell-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E") no-repeat right 6px center;
+      padding-right: 22px;
+      cursor: pointer;
+    }
+
+    .data-table .cell-readonly {
+      color: #1a1a2e;
+      font-weight: bold;
+      text-align: right;
+      padding-right: 4px;
+      font-size: 12px;
+    }
+
+    .btn-del {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    .btn-del:active { color: #e74c3c; }
+
+    .btn-add-row {
+      width: 100%;
+      margin-top: 8px;
+      border: 1px dashed #bbb;
+      background: none;
+      padding: 10px;
+      border-radius: 6px;
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-add-row:active { background: #f5f5f5; }
+
+    .btn-save-holdings {
+      width: 100%;
+      margin-top: 12px;
+      border: 1px solid #27ae60;
+      background: none;
+      padding: 10px;
+      border-radius: 6px;
+      color: #27ae60;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-save-holdings:active { background: #f0fff4; }
+
+    /* Result cards */
+    .result-section {
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      border: 1px solid #f0f0f0;
+    }
+
+    .result-header {
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .result-header.sell { background: #fff0f0; color: #c0392b; border-left: 4px solid #e74c3c; }
+    .result-header.buy  { background: #f0fff4; color: #1e8449; border-left: 4px solid #27ae60; }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      font-size: 13px;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-row.sell-row { background: #fffafa; }
+    .result-row.buy-row  { background: #f9fffc; }
+
+    .result-code { font-weight: bold; color: #333; min-width: 60px; }
+    .result-qty  { font-size: 15px; font-weight: bold; }
+    .result-qty.sell { color: #e74c3c; }
+    .result-qty.buy  { color: #27ae60; }
+    .result-amt  { color: #888; font-size: 12px; }
+
+    /* No-op note */
+    .noop-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: #fafafa;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+      font-size: 12px;
+      color: #bbb;
+    }
+
+    /* Allocation table */
+    .alloc-table {
+      width: 100%;
+      font-size: 13px;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    .alloc-table th {
+      text-align: left;
+      color: #888;
+      font-size: 12px;
+      padding: 6px 8px;
+      background: #f8f9fc;
+    }
+    .alloc-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    /* Section title */
+    .section-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #1a1a2e;
+      margin-bottom: 16px;
+    }
+
+    .warning-bar {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #856404;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header id="app-header">
+      <div class="header-title">📊 调仓计算器</div>
+      <div class="step-bar">
+        <div class="step-item" data-step="1">① 总资产</div>
+        <div class="step-item" data-step="2">② 当前持仓</div>
+        <div class="step-item" data-step="3">③ 目标仓位</div>
+        <div class="step-item" data-step="4">④ 结果</div>
+      </div>
+    </header>
+    <main id="step-content"></main>
+    <footer id="step-nav"></footer>
+  </div>
+  <script>
+    // ============================================================
+    // ETF POOL
+    // ============================================================
+    const ETF_POOL = [
+      { code: '518880', name: '黄金ETF（商品）' },
+      { code: '159915', name: '创业板ETF（A股成长）' },
+      { code: '513100', name: '纳指ETF（美股）' },
+      { code: '513500', name: '标普500ETF（美股）' },
+      { code: '513980', name: '恒指ETF（港股）' },
+      { code: '159980', name: '有色ETF（周期）' },
+      { code: '561360', name: '石油ETF（周期）' },
+      { code: '561550', name: '中证500ETF（中盘）' },
+      { code: '159259', name: '成长ETF' },
+      { code: '159263', name: '价值ETF' },
+      { code: '159207', name: '高股息ETF（防御）' },
+      { code: '159209', name: '红利质量ETF（防御）' },
+      { code: '161226', name: '国投白银LOF（商品）' },
+    ];
+
+    function etfSelectOptions(selectedCode) {
+      return ETF_POOL.map(e =>
+        `<option value="${e.code}" ${e.code === selectedCode ? 'selected' : ''}>${e.code} — ${e.name}</option>`
+      ).join('');
+    }
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    const state = {
+      currentStep: 1,
+      totalAssets: '',          // string, 用户输入
+      holdings: [               // 当前持仓
+        // { code: '', qty: '', price: '' }
+      ],
+      targets: [                // 目标仓位
+        // { code: '', amount: '', pct: '', price: '' }
+        // price 仅在新标的（当前未持仓）时使用
+      ]
+    };
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
+
+    /** 格式化数字为带千分位的字符串，保留 decimals 位小数 */
+    function fmt(num, decimals = 0) {
+      if (isNaN(num) || num === null || num === '') return '--';
+      return Number(num).toLocaleString('zh-CN', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    /** 安全解析浮点数，失败返回 NaN */
+    function parseNum(s) {
+      const n = parseFloat(String(s).replace(/,/g, ''));
+      return isNaN(n) ? NaN : n;
+    }
+
+    /** 向下取整到 100 的倍数 */
+    function floorTo100(n) {
+      return Math.floor(n / 100) * 100;
+    }
+
+    // ============================================================
+    // STEP BAR
+    // ============================================================
+
+    function updateStepBar() {
+      document.querySelectorAll('.step-item').forEach(el => {
+        const s = parseInt(el.dataset.step);
+        el.classList.toggle('active', s === state.currentStep);
+        el.classList.toggle('done', s < state.currentStep);
+      });
+    }
+
+    // ============================================================
+    // NAVIGATION
+    // ============================================================
+
+    function goTo(step) {
+      state.currentStep = step;
+      updateStepBar();
+      renderStep();
+    }
+
+    function renderStep() {
+      const content = document.getElementById('step-content');
+      const nav = document.getElementById('step-nav');
+      content.innerHTML = '';
+      nav.innerHTML = '';
+
+      switch (state.currentStep) {
+        case 1: renderStep1(content, nav); break;
+        case 2: renderStep2(content, nav); break;
+        case 3: renderStep3(content, nav); break;
+        case 4: renderStep4(content, nav); break;
+      }
+    }
+
+    // ============================================================
+    // STEP 1: 总资产
+    // ============================================================
+
+    function renderStep1(content, nav) {
+      content.innerHTML = `
+        <div class="section-title">账户总资产</div>
+        <div class="field-label">当前账户总市值（元）</div>
+        <input
+          id="input-total"
+          class="field-input"
+          type="number"
+          inputmode="decimal"
+          placeholder="例如：500000"
+          value="${state.totalAssets}"
+          min="1"
+        />
+        <div class="error-msg" id="err-total">请输入有效的正数金额</div>
+        <div class="field-hint">包含所有持仓市值 + 可用现金</div>
+      `;
+
+      document.getElementById('input-total').addEventListener('input', e => {
+        state.totalAssets = e.target.value;
+        e.target.classList.remove('error');
+        document.getElementById('err-total').classList.remove('visible');
+      });
+
+      nav.innerHTML = `
+        <button class="btn btn-primary" onclick="step1Next()">下一步 →</button>
+      `;
+    }
+
+    function step1Next() {
+      const val = parseNum(state.totalAssets);
+      if (isNaN(val) || val <= 0) {
+        document.getElementById('input-total').classList.add('error');
+        document.getElementById('err-total').classList.add('visible');
+        return;
+      }
+      goTo(2);
+    }
+
+    // ============================================================
+    // STEP 2: 当前持仓
+    // ============================================================
+
+    // ============================================================
+    // PARTIAL UPDATE HELPERS (avoid full re-render on input)
+    // ============================================================
+
+    function updateHoldingRow(idx) {
+      const mv = holdingMarketValue(state.holdings[idx]);
+      const mvStr = isNaN(mv) ? '--' : fmt(mv, 2);
+      const rows = document.querySelectorAll('#holdings-tbody tr');
+      if (rows[idx]) {
+        const mvCell = rows[idx].querySelector('.cell-readonly');
+        if (mvCell) mvCell.textContent = mvStr;
+      }
+    }
+
+    function updateHoldingsSummary(content, total) {
+      const holdingsMV = totalHoldingsMV();
+      const cash = total - holdingsMV;
+      const bar = content.querySelector('.summary-bar');
+      if (!bar) return;
+      bar.innerHTML = `
+        <div class="summary-item">持仓市值：<span>${fmt(holdingsMV, 2)}</span></div>
+        <div class="summary-item ${cash < 0 ? 'warn' : ''}">可用现金：<span>${fmt(cash, 2)}</span></div>
+      `;
+    }
+
+    function updateTargetsSummary(content, total) {
+      const allocated = totalTargetAmount();
+      const remaining = total - allocated;
+      const overBudget = allocated > total;
+      const bar = content.querySelector('.summary-bar');
+      if (!bar) return;
+      bar.innerHTML = `
+        <div class="summary-item">已分配：<span>${fmt(allocated, 2)}</span></div>
+        <div class="summary-item ${overBudget ? 'warn' : ''}">剩余：<span>${fmt(remaining, 2)}</span></div>
+      `;
+      let warn = content.querySelector('.warning-bar');
+      if (overBudget) {
+        if (!warn) {
+          warn = document.createElement('div');
+          warn.className = 'warning-bar';
+          warn.textContent = '⚠️ 目标分配金额超过总资产，请调整';
+          bar.after(warn);
+        }
+      } else {
+        if (warn) warn.remove();
+      }
+    }
+
+    function holdingMarketValue(h) {
+      const qty = parseNum(h.qty);
+      const price = parseNum(h.price);
+      return (!isNaN(qty) && !isNaN(price)) ? qty * price : NaN;
+    }
+
+    function totalHoldingsMV() {
+      return state.holdings.reduce((sum, h) => {
+        const mv = holdingMarketValue(h);
+        return sum + (isNaN(mv) ? 0 : mv);
+      }, 0);
+    }
+
+    function renderStep2(content, nav) {
+      const total = parseNum(state.totalAssets);
+
+      if (state.holdings.length === 0) {
+        state.holdings.push({ code: '', qty: '', price: '' });
+      }
+
+      const rows = state.holdings.map((h, i) => {
+        const mv = holdingMarketValue(h);
+        const mvStr = isNaN(mv) ? '--' : fmt(mv, 2);
+        return `
+          <tr>
+            <td>
+              <select class="cell-input cell-select" data-field="code" data-idx="${i}">
+                <option value="">选择标的</option>
+                ${etfSelectOptions(h.code)}
+              </select>
+            </td>
+            <td><input class="cell-input" data-field="qty"  data-idx="${i}" value="${h.qty}"  placeholder="100" inputmode="numeric" type="number" /></td>
+            <td><input class="cell-input" data-field="price" data-idx="${i}" value="${h.price}" placeholder="4.52" inputmode="decimal" type="number" /></td>
+            <td class="cell-readonly">${mvStr}</td>
+            <td><button class="btn-del" onclick="deleteHolding(${i})">×</button></td>
+          </tr>
+        `;
+      }).join('');
+
+      const holdingsMV = totalHoldingsMV();
+      const cash = total - holdingsMV;
+
+      content.innerHTML = `
+        <div class="section-title">当前持仓</div>
+        <table class="data-table">
+          <colgroup>
+            <col style="width:28%"><col style="width:22%"><col style="width:22%"><col style="width:20%"><col style="width:8%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>代码</th><th>数量(股)</th><th>价格(元)</th><th>市值(元)</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="holdings-tbody">${rows}</tbody>
+        </table>
+        <button class="btn-add-row" onclick="addHolding()">+ 添加持仓</button>
+        <div class="summary-bar">
+          <div class="summary-item">持仓市值：<span>${fmt(holdingsMV, 2)}</span></div>
+          <div class="summary-item ${cash < 0 ? 'warn' : ''}">可用现金：<span>${fmt(cash, 2)}</span></div>
+        </div>
+        <div class="error-msg" id="err-holdings"></div>
+      `;
+
+      // 数字输入框：input 事件
+      content.querySelectorAll('.cell-input:not(.cell-select)').forEach(input => {
+        input.addEventListener('input', e => {
+          const idx = parseInt(e.target.dataset.idx);
+          const field = e.target.dataset.field;
+          state.holdings[idx][field] = e.target.value;
+          // 只更新该行市值和汇总栏，不重建 DOM（避免失焦）
+          updateHoldingRow(idx);
+          updateHoldingsSummary(content, total);
+        });
+      });
+      // 代码下拉框：change 事件
+      content.querySelectorAll('.cell-select[data-field="code"]').forEach(sel => {
+        sel.addEventListener('change', e => {
+          const idx = parseInt(e.target.dataset.idx);
+          state.holdings[idx].code = e.target.value;
+          // 代码变化不影响市值（价格/数量未变），只更新汇总即可
+          updateHoldingsSummary(content, total);
+        });
+      });
+
+      nav.innerHTML = `
+        <button class="btn btn-secondary" onclick="goTo(1)">← 上一步</button>
+        <button class="btn btn-primary" onclick="step2Next()">下一步 →</button>
+      `;
+    }
+
+    function addHolding() {
+      state.holdings.push({ code: '', qty: '', price: '' });
+      renderStep();
+    }
+
+    function deleteHolding(idx) {
+      state.holdings.splice(idx, 1);
+      if (state.holdings.length === 0) state.holdings.push({ code: '', qty: '', price: '' });
+      renderStep();
+    }
+
+    function step2Next() {
+      const errEl = document.getElementById('err-holdings');
+      const filled = state.holdings.filter(h => h.code.trim() !== '');
+
+      const codes = filled.map(h => h.code.trim().toUpperCase());
+      if (new Set(codes).size !== codes.length) {
+        errEl.textContent = '存在重复的标的代码，请检查';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      for (const h of filled) {
+        const qty = parseNum(h.qty);
+        const price = parseNum(h.price);
+        if (isNaN(qty) || qty <= 0 || !Number.isInteger(qty)) {
+          errEl.textContent = `标的 ${h.code} 的持仓数量无效，请输入正整数`;
+          errEl.classList.add('visible');
+          return;
+        }
+        if (isNaN(price) || price <= 0) {
+          errEl.textContent = `标的 ${h.code} 的价格无效，请输入正数`;
+          errEl.classList.add('visible');
+          return;
+        }
+      }
+
+      state.holdings = filled;
+      errEl.classList.remove('visible');
+      goTo(3);
+    }
+
+    // ============================================================
+    // STEP 3: 目标仓位
+    // ============================================================
+
+    function isNewTarget(code) {
+      return !state.holdings.some(h => h.code.trim().toUpperCase() === code.trim().toUpperCase());
+    }
+
+    function totalTargetAmount() {
+      return state.targets.reduce((sum, t) => {
+        const amt = parseNum(t.amount);
+        return sum + (isNaN(amt) ? 0 : amt);
+      }, 0);
+    }
+
+    function renderStep3(content, nav) {
+      const total = parseNum(state.totalAssets);
+
+      if (state.targets.length === 0) {
+        state.targets.push({ code: '', amount: '', pct: '', price: '' });
+      }
+
+      const rows = state.targets.map((t, i) => {
+        const isNew = t.code.trim() !== '' && isNewTarget(t.code);
+        const newPriceCell = isNew
+          ? `<td><input class="cell-input" data-field="price" data-idx="${i}" value="${t.price}" placeholder="价格" inputmode="decimal" type="number" /></td>`
+          : `<td style="color:#ccc;font-size:11px;text-align:center;padding:6px 4px;">—</td>`;
+
+        return `
+          <tr>
+            <td>
+              <select class="cell-input cell-select" data-field="code" data-idx="${i}">
+                <option value="">选择标的</option>
+                ${etfSelectOptions(t.code)}
+              </select>
+            </td>
+            <td><input class="cell-input" data-field="amount" data-idx="${i}" value="${t.amount}" placeholder="金额" inputmode="decimal" type="number" /></td>
+            <td><input class="cell-input" data-field="pct"    data-idx="${i}" value="${t.pct}"    placeholder="%" inputmode="decimal" type="number" /></td>
+            ${newPriceCell}
+            <td><button class="btn-del" onclick="deleteTarget(${i})">×</button></td>
+          </tr>
+        `;
+      }).join('');
+
+      const allocated = totalTargetAmount();
+      const remaining = total - allocated;
+      const overBudget = allocated > total;
+
+      content.innerHTML = `
+        <div class="section-title">目标仓位</div>
+        <p style="font-size:12px;color:#888;margin-bottom:10px;">新增标的（当前未持仓）需填写当前价格</p>
+        <table class="data-table">
+          <colgroup>
+            <col style="width:23%"><col style="width:22%"><col style="width:16%"><col style="width:22%"><col style="width:8%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>代码</th><th>金额(元)</th><th>占比%</th><th>当前价*</th><th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <button class="btn-add-row" onclick="addTarget()">+ 添加目标</button>
+        <div class="summary-bar">
+          <div class="summary-item">已分配：<span>${fmt(allocated, 2)}</span></div>
+          <div class="summary-item ${overBudget ? 'warn' : ''}">剩余：<span>${fmt(remaining, 2)}</span></div>
+        </div>
+        ${overBudget ? '<div class="warning-bar">⚠️ 目标分配金额超过总资产，请调整</div>' : ''}
+        <div class="error-msg" id="err-targets"></div>
+      `;
+
+      // 数字输入框：input 事件
+      content.querySelectorAll('.cell-input:not(.cell-select)').forEach(input => {
+        input.addEventListener('input', e => {
+          const idx = parseInt(e.target.dataset.idx);
+          const field = e.target.dataset.field;
+          const val = e.target.value;
+          state.targets[idx][field] = val;
+
+          // 金额 <-> 占比联动：更新对方输入框的值，不重建 DOM
+          if (field === 'amount') {
+            const amt = parseNum(val);
+            const pct = isNaN(amt) ? '' : String((amt / total * 100).toFixed(4));
+            state.targets[idx].pct = pct;
+            const pctInput = content.querySelector(`.cell-input[data-field="pct"][data-idx="${idx}"]`);
+            if (pctInput && document.activeElement !== pctInput) pctInput.value = pct;
+          } else if (field === 'pct') {
+            const pct = parseNum(val);
+            const amt = isNaN(pct) ? '' : String((pct / 100 * total).toFixed(2));
+            state.targets[idx].amount = amt;
+            const amtInput = content.querySelector(`.cell-input[data-field="amount"][data-idx="${idx}"]`);
+            if (amtInput && document.activeElement !== amtInput) amtInput.value = amt;
+          }
+
+          // 其他字段只更新汇总栏
+          updateTargetsSummary(content, total);
+        });
+      });
+      // 代码下拉框：change 事件（切换新/旧标的需刷新当前价列，接受重渲染）
+      content.querySelectorAll('.cell-select[data-field="code"]').forEach(sel => {
+        sel.addEventListener('change', e => {
+          const idx = parseInt(e.target.dataset.idx);
+          state.targets[idx].code = e.target.value;
+          renderStep3(content, nav);
+        });
+      });
+
+      nav.innerHTML = `
+        <button class="btn btn-secondary" onclick="goTo(2)">← 上一步</button>
+        <button class="btn btn-primary" onclick="step3Next()">计算结果 →</button>
+      `;
+    }
+
+    function addTarget() {
+      state.targets.push({ code: '', amount: '', pct: '', price: '' });
+      renderStep();
+    }
+
+    function deleteTarget(idx) {
+      state.targets.splice(idx, 1);
+      if (state.targets.length === 0) state.targets.push({ code: '', amount: '', pct: '', price: '' });
+      renderStep();
+    }
+
+    function step3Next() {
+      const errEl = document.getElementById('err-targets');
+      const filled = state.targets.filter(t => t.code.trim() !== '');
+
+      if (filled.length === 0) {
+        errEl.textContent = '请至少添加一个目标标的';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      const codes = filled.map(t => t.code.trim().toUpperCase());
+      if (new Set(codes).size !== codes.length) {
+        errEl.textContent = '存在重复的目标标的代码，请检查';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      const total = parseNum(state.totalAssets);
+
+      for (const t of filled) {
+        const amt = parseNum(t.amount);
+        if (isNaN(amt) || amt < 0) {
+          errEl.textContent = `标的 ${t.code} 的目标金额无效`;
+          errEl.classList.add('visible');
+          return;
+        }
+        if (isNewTarget(t.code)) {
+          const price = parseNum(t.price);
+          if (isNaN(price) || price <= 0) {
+            errEl.textContent = `新标的 ${t.code} 需填写当前价格`;
+            errEl.classList.add('visible');
+            return;
+          }
+        }
+      }
+
+      if (totalTargetAmount() > total) {
+        errEl.textContent = '目标分配金额超出总资产，请调整后再计算';
+        errEl.classList.add('visible');
+        return;
+      }
+
+      state.targets = filled;
+      errEl.classList.remove('visible');
+      goTo(4);
+    }
+
+    // ============================================================
+    // ============================================================
+    // CALCULATION
+    // ============================================================
+
+    const FEE_RATE = 0.003; // 千3手续费
+
+    function calculate() {
+      const total = parseNum(state.totalAssets);
+      const instructions = [];
+
+      const holdingMap = {};
+      state.holdings.forEach(h => {
+        const code = h.code.trim().toUpperCase();
+        holdingMap[code] = {
+          qty: parseNum(h.qty),
+          price: parseNum(h.price),
+          mv: parseNum(h.qty) * parseNum(h.price)
+        };
+      });
+
+      const targetMap = {};
+      state.targets.forEach(t => {
+        const code = t.code.trim().toUpperCase();
+        const amount = parseNum(t.amount);
+        const price = isNewTarget(t.code)
+          ? parseNum(t.price)
+          : holdingMap[code]?.price ?? NaN;
+        targetMap[code] = { amount, price };
+      });
+
+      const allCodes = new Set([...Object.keys(holdingMap), ...Object.keys(targetMap)]);
+
+      // ---- Pass 1: 计算所有卖出（含全清）----
+      // 同时计算当前现金（总资产 - 当前持仓市值）
+      const currentTotalMV = Object.values(holdingMap).reduce((s, h) => s + h.mv, 0);
+      let availableCash = total - currentTotalMV; // 当前可用现金
+
+      allCodes.forEach(code => {
+        const holding = holdingMap[code];
+        const target = targetMap[code];
+        if (!holding) return; // 纯新买入，Pass 2 处理
+        const price = holding.price;
+        const currentMV = holding.mv;
+        const targetMV = target ? target.amount : 0;
+        const diff = targetMV - currentMV;
+
+        if (!target) {
+          // 全清
+          const sellQty = floorTo100(holding.qty);
+          const grossAmt = sellQty * price;
+          const fee = grossAmt * FEE_RATE;
+          const netAmt = grossAmt - fee;
+          availableCash += netAmt; // 卖出净回笼加入可用现金
+          instructions.push({ code, action: sellQty > 0 ? 'sell' : 'noop', qty: sellQty, grossAmt, fee, netAmt, currentMV, targetMV: 0, price });
+        } else if (diff < 0 && Math.abs(diff) >= price * 100) {
+          // 减仓
+          const sellQty = floorTo100(Math.abs(diff) / price);
+          const grossAmt = sellQty * price;
+          const fee = grossAmt * FEE_RATE;
+          const netAmt = grossAmt - fee;
+          availableCash += netAmt;
+          instructions.push({ code, action: 'sell', qty: sellQty, grossAmt, fee, netAmt, currentMV, targetMV, price });
+        } else if (diff >= 0 || Math.abs(diff) < price * 100) {
+          // 占位：加仓或无需操作，Pass 2 或直接处理
+          instructions.push({ code, action: '__pending_buy_or_noop', currentMV, targetMV, price });
+        }
+      });
+
+      // ---- Pass 2: 分配买入，全局受 availableCash 约束 ----
+      // 收集所有需要买入的标的（含加仓和全新买入）
+      const buyNeeds = []; // { code, price, targetMV, currentMV }
+      allCodes.forEach(code => {
+        const holding = holdingMap[code];
+        const target = targetMap[code];
+        if (!target) return; // 无目标 = 已在 Pass1 处理（卖出）
+        const price = holding ? holding.price : target.price;
+        if (!price || isNaN(price)) return;
+        const currentMV = holding ? holding.mv : 0;
+        const targetMV = target.amount;
+        const diff = targetMV - currentMV;
+        if (diff >= price * 100) {
+          buyNeeds.push({ code, price, targetMV, currentMV, diff });
+        } else if (Math.abs(diff) < price * 100) {
+          // noop（差异不足100股）：替换或添加
+          const existing = instructions.find(i => i.code === code);
+          if (existing) {
+            Object.assign(existing, { action: 'noop', qty: 0, grossAmt: 0, fee: 0, netAmt: 0 });
+          } else {
+            instructions.push({ code, action: 'noop', qty: 0, grossAmt: 0, fee: 0, netAmt: 0, currentMV, targetMV, price });
+          }
+        }
+      });
+
+      // 总买入需求（不含手续费）
+      const totalBuyDiff = buyNeeds.reduce((s, b) => s + b.diff, 0);
+
+      buyNeeds.forEach(b => {
+        // 按目标差值比例分配可用现金，再除以 (1+fee) 得实际可买毛额
+        const allocated = availableCash * (b.diff / totalBuyDiff);
+        const buyQty = floorTo100(allocated / (1 + FEE_RATE) / b.price);
+        const grossAmt = buyQty * b.price;
+        const fee = grossAmt * FEE_RATE;
+        const netAmt = grossAmt + fee; // 实际支出
+        const existing = instructions.find(i => i.code === b.code);
+        if (existing) {
+          Object.assign(existing, { action: buyQty > 0 ? 'buy' : 'noop', qty: buyQty, grossAmt, fee, netAmt });
+        } else {
+          instructions.push({ code: b.code, action: buyQty > 0 ? 'buy' : 'noop', qty: buyQty, grossAmt, fee, netAmt, currentMV: b.currentMV, targetMV: b.targetMV, price: b.price });
+        }
+      });
+
+      // 清理 __pending_buy_or_noop 残留（已在 buyNeeds 中处理过的会被 Object.assign 覆盖，但若 diff<0 且<100股则可能残留）
+      instructions.forEach(i => {
+        if (i.action === '__pending_buy_or_noop') {
+          i.action = 'noop'; i.qty = 0; i.grossAmt = 0; i.fee = 0; i.netAmt = 0;
+        }
+      });
+
+      return instructions;
+    }
+
+    // ============================================================
+    // STEP 4: 结果
+    // ============================================================
+
+    function renderStep4(content, nav) {
+      const instructions = calculate();
+      const sells = instructions.filter(i => i.action === 'sell');
+      const buys  = instructions.filter(i => i.action === 'buy');
+      const noops = instructions.filter(i => i.action === 'noop');
+
+      function renderRows(list, cls) {
+        if (list.length === 0) return `<div class="result-row ${cls}-row"><span style="color:#aaa;font-size:13px;">无操作</span></div>`;
+        return list.map(item => {
+          const isSell = cls === 'sell';
+          const amtLabel = isSell
+            ? `回笼 ${fmt(item.netAmt, 0)} 元（含费 ${fmt(item.fee, 0)} 元）`
+            : `支出 ${fmt(item.netAmt, 0)} 元（含费 ${fmt(item.fee, 0)} 元）`;
+          return `
+            <div class="result-row ${cls}-row">
+              <span class="result-code">${item.code}</span>
+              <span class="result-qty ${cls}">${isSell ? '卖出' : '买入'} ${fmt(item.qty)} 股</span>
+              <span class="result-amt">${amtLabel}</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      const noopRows = noops.length > 0
+        ? noops.map(item => `
+            <div class="noop-row">
+              <span>${item.code}</span>
+              <span>无需操作（差异 &lt; 100股）</span>
+            </div>
+          `).join('')
+        : '';
+
+      const total = parseNum(state.totalAssets);
+
+      const holdingMap = {};
+      state.holdings.forEach(h => {
+        holdingMap[h.code.trim().toUpperCase()] = { qty: parseNum(h.qty), price: parseNum(h.price) };
+      });
+
+      // 构建调仓后预估持仓列表（供保存用）
+      const finalHoldings = instructions
+        .filter(item => {
+          const h = holdingMap[item.code];
+          const currentQty = h ? h.qty : 0;
+          let finalQty = currentQty;
+          if (item.action === 'sell') finalQty = currentQty - item.qty;
+          else if (item.action === 'buy') finalQty = currentQty + item.qty;
+          return finalQty > 0;
+        })
+        .map(item => {
+          const h = holdingMap[item.code];
+          const currentQty = h ? h.qty : 0;
+          let finalQty = currentQty;
+          if (item.action === 'sell') finalQty = currentQty - item.qty;
+          else if (item.action === 'buy') finalQty = currentQty + item.qty;
+          return { code: item.code, qty: String(finalQty), price: String(item.price) };
+        });
+
+      const allocRows = instructions.map(item => {
+        const h = holdingMap[item.code];
+        const currentQty = h ? h.qty : 0;
+        let finalQty = currentQty;
+        if (item.action === 'sell') finalQty = currentQty - item.qty;
+        else if (item.action === 'buy') finalQty = currentQty + item.qty;
+        const finalMV = finalQty * item.price;
+        const finalPct = isNaN(total) || total === 0 ? '--' : (finalMV / total * 100).toFixed(1) + '%';
+        return `
+          <tr>
+            <td>${item.code}</td>
+            <td style="text-align:right">${fmt(finalQty)}</td>
+            <td style="text-align:right">${fmt(finalMV, 0)}</td>
+            <td style="text-align:right">${finalPct}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // 调仓后总持仓市值和剩余现金（考虑手续费影响）
+      const totalFee = instructions.reduce((sum, i) => sum + (i.fee || 0), 0);
+      const finalTotalMV = instructions.reduce((sum, item) => {
+        const h = holdingMap[item.code];
+        const currentQty = h ? h.qty : 0;
+        let finalQty = currentQty;
+        if (item.action === 'sell') finalQty = currentQty - item.qty;
+        else if (item.action === 'buy') finalQty = currentQty + item.qty;
+        return sum + finalQty * item.price;
+      }, 0);
+      const finalCash = total - finalTotalMV - totalFee;
+
+      content.innerHTML = `
+        <div class="result-section">
+          <div class="result-header sell">🔴 需要卖出</div>
+          ${renderRows(sells, 'sell')}
+        </div>
+        <div class="result-section">
+          <div class="result-header buy">🟢 需要买入</div>
+          ${renderRows(buys, 'buy')}
+        </div>
+        ${noopRows ? `<div class="result-section" style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;margin-bottom:16px;">${noopRows}</div>` : ''}
+        <div class="summary-bar" style="margin-bottom:16px">
+          <div class="summary-item">总持仓市值：<span>${fmt(finalTotalMV, 0)} 元</span></div>
+          <div class="summary-item">手续费合计：<span>${fmt(totalFee, 0)} 元</span></div>
+          <div class="summary-item ${finalCash < 0 ? 'warn' : ''}">剩余现金：<span>${fmt(finalCash, 0)} 元</span></div>
+        </div>
+        <div style="margin-top:4px">
+          <div class="section-title" style="font-size:14px">调仓后预估持仓</div>
+          <table class="alloc-table">
+            <thead><tr><th>代码</th><th style="text-align:right">股数</th><th style="text-align:right">市值(元)</th><th style="text-align:right">占比</th></tr></thead>
+            <tbody>${allocRows}</tbody>
+          </table>
+          <button class="btn-save-holdings" onclick="saveHoldingsForNextTime()">💾 保存为下次持仓</button>
+          <div id="save-tip" style="display:none;font-size:12px;color:#27ae60;margin-top:6px;text-align:center;">✅ 已保存，下次打开自动填入</div>
+        </div>
+      `;
+
+      nav.innerHTML = `
+        <button class="btn btn-secondary" onclick="goTo(3)">← 返回修改</button>
+        <button class="btn btn-primary" onclick="resetAll()">重新计算</button>
+      `;
+
+      // 将 finalHoldings 挂到全局以供保存函数访问
+      renderStep4._finalHoldings = finalHoldings;
+    }
+
+    function saveHoldingsForNextTime() {
+      const holdings = renderStep4._finalHoldings;
+      if (!holdings || holdings.length === 0) return;
+      localStorage.setItem('rebalance_saved_holdings', JSON.stringify(holdings));
+      const tip = document.getElementById('save-tip');
+      if (tip) { tip.style.display = 'block'; setTimeout(() => { tip.style.display = 'none'; }, 2500); }
+    }
+
+    function resetAll() {
+      state.currentStep = 1;
+      state.totalAssets = '';
+      state.holdings = [];
+      state.targets = [];
+      updateStepBar();
+      renderStep();
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      // 尝试读取上次保存的持仓
+      const saved = localStorage.getItem('rebalance_saved_holdings');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            state.holdings = parsed;
+          }
+        } catch (e) { /* ignore */ }
+      }
+      updateStepBar();
+      renderStep();
+    });
+  </script>
+</body>
+</html>

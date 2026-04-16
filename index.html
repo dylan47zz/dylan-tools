@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dylan's Tools</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: white;
+      padding: 32px 24px 28px;
+    }
+
+    .header-title {
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    .header-sub {
+      font-size: 14px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 6px;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #999;
+      margin-bottom: 12px;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .tool-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      text-decoration: none;
+      color: inherit;
+      border: 1px solid #eee;
+      transition: box-shadow 0.15s, transform 0.15s;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .tool-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      transform: translateY(-1px);
+    }
+
+    .tool-icon {
+      font-size: 28px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .tool-info {}
+
+    .tool-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin-bottom: 4px;
+    }
+
+    .tool-desc {
+      font-size: 13px;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    .tool-tag {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 11px;
+      background: #f0f2f5;
+      color: #666;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    footer {
+      text-align: center;
+      color: #bbb;
+      font-size: 12px;
+      padding: 32px 16px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">🛠 Dylan's Tools</div>
+    <div class="header-sub">个人小工具集合，持续更新</div>
+  </header>
+
+  <main>
+    <div class="section-title">投资工具</div>
+    <div class="tool-grid">
+      <a class="tool-card" href="/tools/rebalance/">
+        <div class="tool-icon">📊</div>
+        <div class="tool-info">
+          <div class="tool-name">调仓计算器</div>
+          <div class="tool-desc">根据当前持仓和目标仓位，计算需要买卖的 ETF 数量，考虑手续费和最小交易单位</div>
+          <span class="tool-tag">ETF · 股票</span>
+        </div>
+      </a>
+      <!-- 更多工具持续添加 -->
+    </div>
+  </main>
+
+  <footer>Dylan's Tools · 纯前端，数据不上传</footer>
+</body>
+</html>
